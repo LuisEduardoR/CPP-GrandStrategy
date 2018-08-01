@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "fstream": "cpp",
+        "cstdio": "cpp",
+        "vector": "cpp",
+        "cstdlib": "cpp",
+        "array": "cpp",
+        "*.tcc": "cpp"
+    }
+}
