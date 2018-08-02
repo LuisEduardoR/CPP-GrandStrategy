@@ -1,12 +1,11 @@
-#include <SFML/Window.hpp>
-#include "map_data.hpp"
 #include <cstdio>
-
+#include "map_data.hpp"
+#include <SFML/Window.hpp>
 int main() {
 
     mdata::MapData mapData;
 
-    sf::Window mainWindow(sf::VideoMode(800, 600), "Victoria III");
+    sf::Window mainWindow(sf::VideoMode(800, 600), "Victoria III But No...");
     sf::Window auxWindow(sf::VideoMode(200, 500), "Production");
 
     while (mainWindow.isOpen()) {
