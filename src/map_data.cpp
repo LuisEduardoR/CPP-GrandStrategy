@@ -1,176 +1,218 @@
 #include "map_data.hpp"
+
 #include <cstdio>
 #include <cstdlib>
-#include <set>
-#include <vector>
-#include <utility>
-#include <SFML/System/Vector2.hpp>
-#include <SFML/Graphics/Image.hpp>
-
-#define PROVINCE_PNG_PATH "map/provinces.png"
-#define FLOOD_IMAGE_BLOCK_SIZE 256
+#include <iostream>
 
 mdata::MapData::MapData(void) {
 
-    ready = false;
-    provinces.clear();
-    adjacecies_matrix = NULL;
+    mDataAvaliable = false;
 
-}
-
-bool mdata::MapData::generateMapData(void) {
-
-    adjacecies_matrix = NULL;
-
-    // Attempts to load the provinces.png image;
-    sf::Image province_map;
-
-    fprintf(stdout, ">> Loading %s...\n", PROVINCE_PNG_PATH);
-    fflush(stdout);
-    if(!province_map.loadFromFile(PROVINCE_PNG_PATH)) {
-        fprintf(stderr, "> Unable to continue due to previous error!\n");
-        return false;
-    }
-
-    sf::Vector2u map_px_size = province_map.getSize();
-
-    // Creates a matrix to store wich pixels of the image have been visited.
-    short** visited_pixels = NULL;
-    visited_pixels = (short**)malloc(sizeof(short*) * map_px_size.x);
-    for (int i = 0; i < map_px_size.x; i++)
-        visited_pixels[i] = (short*)malloc(sizeof(short) * map_px_size.y);
-
-    // Initiate the allocated space with zeroses.
-    for(int a = 0; a < map_px_size.x; a++)
-        for(int b = 0; b < map_px_size.y; b++)
-            visited_pixels[a][b] = 0;
-    
-    fprintf(stdout, ">> Generating provinces...\n");
+    // In future will check if there is up to date MapData and load it if that is the case. For now just generates data from scratch.
+    /*if(MapData has already been built and was not modified)
+    Just load
+    else*/
+    fprintf(stdout, "> No map data has been found or prov_it is not up to date! New map data will now be generated...\n");
+    fprintf(stdout, ">> Generating map...\n");
     fflush(stdout);
 
-    // Works as a list of provinces to be generated.
-    std::vector<ProvinceGenerating> provinces_to_gen;
-
-    unsigned current_id = 0;
-
-    // Adds an inital province to be generated at the upper left corner of the image.
-    sf::Vector2u* pixel_queue = (sf::Vector2u*)calloc(16*1024*1024, sizeof(sf::Vector2u));
-
-    ProvinceGenerationData province_generation_data(&current_id, &provinces_to_gen, &provinces, pixel_queue, province_map, visited_pixels);
-
-    ProvinceGenerating initial_prov(&province_generation_data, current_id, province_map.getPixel(0,0), sf::Vector2u(0,0));
-    provinces_to_gen.push_back(initial_prov);
-
-    // While there are provinces to be verified verifies then.
-    while(!provinces_to_gen.empty()) {
-
-        /* Creates a variable to store the GenerateProvince data and removes from the list (this is done to not have to remove from the middle
-           of the vector later and having to shift following elements in the vector).*/
-        ProvinceGenerating cur_prov = provinces_to_gen.back();
-        provinces_to_gen.pop_back();
-
-        cur_prov.generate_province();
-
-    }
-
-    fprintf(stdout, ">> Done generating %lu provinces...\n", provinces.size());
-
-    // Frees the memory allocated for the visited matrix.
-    for (int j = 0; j < map_px_size.y; j++)
-        free(visited_pixels[j]);
-    free(visited_pixels);
-
-    ready = true;
-    return ready;  
-
-}
-
-void mdata::ProvinceGenerating::generate_province () { 
-
-    unsigned cur_pos_in_list = 0;
-
-    (*province_generation_data).pixel_queue[0] = initial_pixel;
-
-    while (cur_pos_in_list <= (*province_generation_data).max_queue_pos) {    
-        
-        analysePixel((*province_generation_data).pixel_queue[cur_pos_in_list]);
-        cur_pos_in_list++;
-
-    }
-
-    unsigned center_x = (max_x + min_x);
-    unsigned center_y = (max_x + min_x);
-    mdata::Province new_province(numeric_id, color_in_map, sf::Vector2u(center_x, center_y));
-
-    fprintf(stderr,"new prov %u\n", new_province.numeric_id);
-
-    (*((*province_generation_data).province_list)).push_back(new_province);
-
-    fprintf(stderr,"after new prov %u\n", new_province.numeric_id);
-
-}
-
-void mdata::ProvinceGenerating::analysePixel(sf::Vector2u pixel) {
-
-    if((*province_generation_data).visited_pixels[pixel.x][pixel.y] == 1)
+    // Creates an instance of the MapGenerator and attempts to generate the map data.
+    MapGenerator generator;
+    if(!(mDataAvaliable = generator.generateMapData())) { 
+        fprintf(stderr, "> Failed to generate map data!\n"); 
         return;
+    } else {
+        fprintf(stdout, "> Map data generated successfully!\n");
+        fflush(stdout);
 
-    sf::Color px_color = (*province_generation_data).province_map.getPixel(pixel.x, pixel.y);
+        mDataAvaliable = true;
+    }
 
-    if(px_color == color_in_map) {
+}
 
-        (*province_generation_data).visited_pixels[pixel.x][pixel.y] = 1;
+// Generates map data from image and text files in the ./map directory
+bool mdata::MapGenerator::generateMapData() {
 
-        // Update the max and min for x and y, this will be used later to determine province center.
-        if(pixel.x < min_x) { min_x = pixel.x; }
-        if(pixel.x > max_x) { max_x = pixel.x; }
-        if(pixel.y < min_y) { min_y = pixel.y; }
-        if(pixel.y > max_y) { max_y = pixel.y; }
+    if(!loadNecessaryFiles()) { 
+        fprintf(stderr, ">> Failed to load all necessary files!\n"); 
+        return false;
+    } else {
+        fprintf(stdout, ">> Necessary files loaded successfully!\n");
+        fflush(stdout);
+    }
 
-        if (pixel.x > 0 && (*province_generation_data).visited_pixels[pixel.x - 1][pixel.y] == 0) {
-            ((*province_generation_data).max_queue_pos)++;
-            (*province_generation_data).pixel_queue[(*province_generation_data).max_queue_pos] == sf::Vector2u(pixel.x - 1,pixel.y);
-            (*province_generation_data).visited_pixels[pixel.x - 1][pixel.y] = -1;
-        }
+    fprintf(stdout, ">> Generating provinces...!\n");
+    fflush(stdout);
 
-        if (pixel.x < ((*province_generation_data).map_size.x - 1) && (*province_generation_data).visited_pixels[pixel.x + 1][pixel.y]  == 0) {
-            ((*province_generation_data).max_queue_pos)++;
-            (*province_generation_data).pixel_queue[(*province_generation_data).max_queue_pos] = sf::Vector2u(pixel.x + 1,pixel.y);
-            (*province_generation_data).visited_pixels[pixel.x + 1][pixel.y] = -1;
-        }
+    sf::Vector2u map_size = provinceMap.getSize();
 
-        if (pixel.y > 0 && (*province_generation_data).visited_pixels[pixel.x][pixel.y - 1] == 0) {
-            ((*province_generation_data).max_queue_pos)++;
-            (*province_generation_data).pixel_queue[(*province_generation_data).max_queue_pos] = sf::Vector2u(pixel.x,pixel.y - 1);
-            (*province_generation_data).visited_pixels[pixel.x][pixel.y - 1] = -1;
-        }
+    std::set<std::pair<unsigned, unsigned>> adjacencies;
 
-        if (pixel.y < ((*province_generation_data).map_size.y - 1) && (*province_generation_data).visited_pixels[pixel.y][pixel.y + 1] == 0) {
-            ((*province_generation_data).max_queue_pos)++;
-            (*province_generation_data).pixel_queue[(*province_generation_data).max_queue_pos] = sf::Vector2u(pixel.x,pixel.y + 1);
-            (*province_generation_data).visited_pixels[pixel.x][pixel.y + 1] = -1;
-        }
+    std::map<unsigned,mdata::Province>::iterator prov_it;
 
-    } else if (px_color != sf::Color::Black){
+    // Generates provinces that are in the first line of the map.
+    for(unsigned x = 0; x < map_size.x; x++) {
 
-        bool is_new = true;
+        // Verifies if a province with the color of the current pixel has already been generated and gets an iterator to it.
+        prov_it = provincesInGeneration.find(generateIdFromColor(provinceMap.getPixel(x,0)));
 
-        // Verifies if a province with this color is already waiting to be generated.
-        for(unsigned u = 0; u < (*(*province_generation_data).province_generation_queue).size(); u++) {
-            if ((*((*province_generation_data).province_generation_queue))[u].color_in_map == px_color) {
+        // If an iterator is found just update province edges.
+        if (prov_it != provincesInGeneration.end())
+            updateEdgeCoordinates(x,0,prov_it);
+        else // If an iterator is not found a province with this color doesn't exist and therefore needs to be generated.
+            createProvince(x,0);
 
-                is_new = false;
-                (*((*province_generation_data).province_generation_queue))[u].adjacent_ids.insert(numeric_id);
-                break;
+    }
+
+    sf::Color cur_color;
+    sf::Color next_color;
+
+    std::map<unsigned,mdata::Province>::iterator next_prov_it;
+
+    // Verifies all pixels of the image.
+    for(unsigned y = 0; y < map_size.y; y++) {
+        for(unsigned x = 0; x < map_size.x; x++) {
+
+            cur_color = provinceMap.getPixel(x,y);
+
+            // Check the pixel to the right of the current pixel, 
+            if(x + 1 < map_size.x) {
+
+                next_color = provinceMap.getPixel(x + 1, y);
+
+
+                /* If the color of both pixels is te same theres is nothing that needs to be done.
+                   Also don't do anything if the color of the other pixel is black, the color black is reserved if for some reason you need to create a
+                   "void" spot in the map. */
+                if(cur_color != next_color && next_color != sf::Color::Black) {
+                    
+                    // Finds an iterator to the current province.
+                    prov_it = provincesInGeneration.find(generateIdFromColor(cur_color));
+
+                    // Update the edge coordinates for the current province.
+                    updateEdgeCoordinates(x, y, prov_it);
+
+                    // Finds a iterator to the other province.
+                    // OBS: provinces on the same line will always already have being generated by the line above (SEE BELOW).
+                    // That is also the reason the first line is generated separately.
+                    next_prov_it = provincesInGeneration.find(generateIdFromColor(next_color));
+
+                    // Add an adjacency between those two provinces. Because it is a std::set duplicates will be ignored.
+                    // Always add the province with the smallest id first to guarantee there can't be a duplicate with just the values reversed.
+                    if((*prov_it).second.numeric_id < (*next_prov_it).second.numeric_id)
+                        adjacencies.insert(std::make_pair((*prov_it).second.numeric_id,(*next_prov_it).second.numeric_id));
+                    else
+                        adjacencies.insert(std::make_pair((*next_prov_it).second.numeric_id,(*prov_it).second.numeric_id));
+
+                    // Update the edge coordinates for the other province.
+                    updateEdgeCoordinates(x, y + 1, next_prov_it);
+
+                }
+            }
+
+            // Check the pixel below the current pixel.
+            if(y + 1 < map_size.y) {
+
+                next_color = provinceMap.getPixel(x, y + 1);
+
+                if(cur_color != next_color && next_color != sf::Color::Black) {
+
+                    
+                    prov_it = provincesInGeneration.find(generateIdFromColor(cur_color));
+
+                    updateEdgeCoordinates(x, y, prov_it);
+
+                    // Tries to find an iterator to the other province.
+                    next_prov_it = provincesInGeneration.find(generateIdFromColor(next_color));
+
+                    // If none is found creates a new province and gets the iterator.
+                    if (next_prov_it == provincesInGeneration.end())
+                        next_prov_it = createProvince(x,y + 1);
+
+                    if((*prov_it).second.numeric_id < (*next_prov_it).second.numeric_id)
+                        adjacencies.insert(std::make_pair((*prov_it).second.numeric_id,(*next_prov_it).second.numeric_id));
+                    else
+                        adjacencies.insert(std::make_pair((*next_prov_it).second.numeric_id,(*prov_it).second.numeric_id));
+
+                    updateEdgeCoordinates(x, y + 1, next_prov_it);
+
+                }       
+
             }
         }
-
-        if(is_new) {
-            (*(*province_generation_data).cur_id_number)++;
-            mdata::ProvinceGenerating new_province_gen(province_generation_data, (*(*province_generation_data).cur_id_number), px_color, pixel);
-            (*((*province_generation_data).province_generation_queue)).push_back(new_province_gen);
-        }
-
     }
 
+    fprintf(stdout, ">> Done analysing %u pixels and generating %lu provinces!\n", map_size.x * map_size.y, provincesInGeneration.size());
+    fprintf(stdout, ">> Saving data to files...\n");
+    fflush(stdout);
+
+    // Saves province data to files.
+    fprintf(stdout, ">>> Saving %s...\n", PROVINCES_TXT_PATH);
+    FILE* province_file = fopen(PROVINCES_TXT_PATH,"w+");
+    for(std::map <unsigned, mdata::Province>::iterator i = provincesInGeneration.begin(); i != provincesInGeneration.end(); i++) {
+
+        (*i).second.generateCenter();
+        fprintf(province_file, "%u %u %u %u %u %u\n", 
+                (*i).second.numeric_id, (*i).second.color.r, (*i).second.color.g, (*i).second.color.b, (*i).second.center.x, (*i).second.center.y);
+        
+    }
+
+    fclose(province_file);
+
+    fprintf(stdout, ">>> Saving %s...\n", ADJACENCIES_TXT_PATH);
+    FILE* adjacencies_file = fopen(ADJACENCIES_TXT_PATH,"w+");
+
+    for(std::set<std::pair<unsigned, unsigned>>::iterator i = adjacencies.begin(); i != adjacencies.end(); i++) {
+
+        fprintf(adjacencies_file, "%u %u\n", (*i).first, (*i).second);
+        
+    }
+
+    fclose(adjacencies_file);
+
+    return true;
+
+}
+
+bool mdata::MapGenerator::loadNecessaryFiles() {
+
+    // Attempts to load the provinces.png image;
+    fprintf(stdout, ">> Loading files...\n");
+    fprintf(stdout, ">>> Loading %s...\n", PROVINCES_BMP_PATH);
+    fflush(stdout);
+
+    if(!provinceMap.loadFromFile(PROVINCES_BMP_PATH)) { 
+        fprintf(stderr, ">>> Failed to load %s!\n", PROVINCES_BMP_PATH);
+        return false; 
+    }
+
+    return true;
+
+}
+
+// Create a new province.
+std::map <unsigned, mdata::Province>::iterator mdata::MapGenerator::createProvince(unsigned x, unsigned y) {
+
+    Province new_province;
+    new_province.numeric_id = provincesInGeneration.size();
+    new_province.color = provinceMap.getPixel(x,y);
+
+    // Return an iterator to the province.
+    return provincesInGeneration.insert(std::make_pair(generateIdFromColor(new_province.color), new_province)).first;
+
+}
+
+// Update edge coordinates of a province that will later be used to find it's center.
+void mdata::MapGenerator::updateEdgeCoordinates(unsigned x, unsigned y, std::map<unsigned,mdata::Province>::iterator prov_it) {
+
+    if((*prov_it).second.min_x > x) { (*prov_it).second.min_x = x; }
+    if((*prov_it).second.max_x < x) { (*prov_it).second.max_x = x; }
+    if((*prov_it).second.min_y > y) { (*prov_it).second.min_y = y; }
+    if((*prov_it).second.max_y < y) { (*prov_it).second.max_y = y; }
+
+}
+
+// Generates an unique number from a color RGB value that can be used as a key for a map.
+unsigned mdata::MapGenerator::generateIdFromColor(sf::Color col) { 
+    return 1000000 * col.r + 1000 * col.g + col.b; 
 }

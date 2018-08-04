@@ -1,46 +1,40 @@
 #include <cstdio>
+
+#include "main.hpp"
 #include "map_data.hpp"
+
 #include <SFML/Window.hpp>
 int main() {
 
-    mdata::MapData mapData;
+    // Creates the SFML main window.
+    sf::Window main_window(sf::VideoMode(800, 600), "Victoria III But No...");
 
-    sf::Window mainWindow(sf::VideoMode(800, 600), "Victoria III But No...");
-    sf::Window auxWindow(sf::VideoMode(200, 500), "Production");
+    // Create an object to store all the map data.
+    // The data will automatically be loaded by the MapData constructor.
+    mdata::MapData map_data;
 
-    while (mainWindow.isOpen()) {
+    while (main_window.isOpen()) {
 
-        if(!mapData.ready) {
-            fprintf(stdout, "> Generating map...\n");
-            fflush(stdout);
-
-            if(mapData.generateMapData()) {
-                fprintf(stdout, "> READY!\n");
-                fflush(stdout);
-            } else
-                break;
-
+        // CLose the program if for some reason the map data failed to be created/loaded.
+        if(!map_data.isAvaliable()) {
+            close(&main_window);
+            return -1;
         }
 
-        // check all the window's events that were triggered since the last iteration of the loop
-        sf::Event mainEvent;
-        while (mainWindow.pollEvent(mainEvent))
+        sf::Event main_event;
+        while (main_window.pollEvent(main_event))
         {
-            // "close requested" event: we close the window
-            if (mainEvent.type == sf::Event::Closed)
-                mainWindow.close();
-        }
-
-        // check all the window's events that were triggered since the last iteration of the loop
-        sf::Event auxEvent;
-        while (auxWindow.pollEvent(auxEvent))
-        {
-            // "close requested" event: we close the window
-            if (auxEvent.type == sf::Event::Closed)
-                auxWindow.close();
+            if (main_event.type == sf::Event::Closed)
+                main_window.close();
         }
 
     }
 
     return 0;
+}
+
+void close(sf::Window* rMainWindow) {
+
+    (*rMainWindow).close();
+
 }

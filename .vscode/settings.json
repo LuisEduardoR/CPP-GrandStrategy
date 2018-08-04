@@ -33,6 +33,9 @@
         "typeinfo": "cpp",
         "utility": "cpp",
         "set": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "forward_list": "cpp",
+        "cstring": "cpp",
+        "iostream": "cpp"
     }
 }
