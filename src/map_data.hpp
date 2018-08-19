@@ -15,13 +15,15 @@
 
 namespace mdata {
 
+unsigned generateIdFromColor(sf::Color color);
+sf::Color generateColorFromId(unsigned id);
+
 // Contain variables and methods related to provinces, both in game and during their generation.
 class Province {
 
     public:
 
-        unsigned numeric_id;
-        sf::Color color;
+        unsigned id;
 
         sf::Vector2u center;
 
@@ -68,8 +70,6 @@ class MapGenerator {
         std::set <std::pair<unsigned, unsigned>> provinceAdjacencies;
 
         bool loadNecessaryFiles();
-
-        unsigned generateIdFromColor(sf::Color color);
 
     public:
 
