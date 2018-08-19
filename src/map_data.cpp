@@ -12,33 +12,120 @@ mdata::MapData::MapData(void) {
     /*if(MapData has already been built and was not modified)
     Just load
     else*/
-    fprintf(stdout, "> No map data has been found or prov_it is not up to date! New map data will now be generated...\n");
-    fprintf(stdout, ">> Generating map...\n");
+    fprintf(stdout, "> No map data has been found or it is not up to date! New map data will now be generated...\n");
+    fprintf(stdout, "> Generating map...\n");
     fflush(stdout);
 
     // Creates an instance of the MapGenerator and attempts to generate the map data.
     MapGenerator generator;
-    if(!(mDataAvaliable = generator.generateMapData())) { 
-        fprintf(stderr, "> Failed to generate map data!\n"); 
-        return;
-    } else {
+    if(generator.generateMapData()) { 
         fprintf(stdout, "> Map data generated successfully!\n");
         fflush(stdout);
-
-        mDataAvaliable = true;
+    } else {
+        fprintf(stderr, "> Failed to generate map data!\n"); 
+        return;
     }
+
+    if(loadMapData()) { 
+        fprintf(stdout, ">> Done loading %lu provinces with %lu adjacencies!\n", provinces.size(), adjacencies.size());
+        fprintf(stdout, "> Map data loaded successfully!\n");
+        fflush(stdout);
+    } else {
+        fprintf(stderr, "> Failed to load map data!\n"); 
+        return;
+    }
+
+}
+
+// Load map data from previously generated files.
+bool mdata::MapData::loadMapData() {
+
+    // Load provinces from file.
+
+    unsigned temp_prov;
+    unsigned temp_center_x;
+    unsigned temp_center_y;
+
+    fprintf(stdout, ">> Loading files...\n");
+    fflush(stdout);
+
+    // Tries to open the provinces file and gives an error if it's not possible.
+
+    fprintf(stdout, ">>> Loading %s...\n", PROVINCES_TXT_PATH);
+    fflush(stdout);
+
+    FILE* province_file = NULL;
+    province_file = fopen(PROVINCES_TXT_PATH,"r");
+
+    if(province_file == NULL) {
+        fprintf(stderr, ">>> Failed to load %s!\n", PROVINCES_TXT_PATH);
+        return false;
+    }
+
+    // Reads the provinces file.
+    while (fscanf(province_file, " %u %u %u", &temp_prov, &temp_center_x, &temp_center_y) != EOF) {
+
+        Province new_province;
+        new_province.id = temp_prov;
+        new_province.generateCenter(temp_center_x, temp_center_y);
+
+        provinces.insert(std::make_pair(temp_prov, new_province));
+
+    }
+
+    fclose(province_file);
+
+    // Load adjacencies from file.
+
+    unsigned temp_adj_u;
+    unsigned temp_adj_v;
+
+    // Tries to open the adjacencies file and gives an error if it's not possible.
+    fprintf(stdout, ">>> Loading %s...\n", ADJACENCIES_TXT_PATH);
+    fflush(stdout);
+
+    FILE* adjacencies_file = NULL;
+    adjacencies_file = fopen(ADJACENCIES_TXT_PATH,"r");
+
+    if(adjacencies_file == NULL) {
+        fprintf(stderr, ">>> Failed to load %s!\n", ADJACENCIES_TXT_PATH);
+        return false;
+    }
+
+    // Reads the adjacencies file.
+    while (fscanf(adjacencies_file, " %u %u", &temp_adj_u, &temp_adj_v) != EOF) {
+
+        std::pair<unsigned, unsigned> adjacency_entry;
+
+        /* In order of not creating duplicate adjacencies the smaller province id is always added
+        first. */
+        if(temp_adj_u < temp_adj_v) {
+            adjacency_entry.first = temp_adj_u;
+            adjacency_entry.second = temp_adj_v;
+        } else {
+            adjacency_entry.first = temp_adj_v;
+            adjacency_entry.second = temp_adj_u;
+        }
+        
+        adjacencies.insert(adjacency_entry);
+
+    }
+
+    fclose(adjacencies_file);
+
+    return true;
 
 }
 
 // Generates map data from image and text files in the ./map directory
 bool mdata::MapGenerator::generateMapData() {
 
-    if(!loadNecessaryFiles()) { 
-        fprintf(stderr, ">> Failed to load all necessary files!\n"); 
-        return false;
-    } else {
+    if(loadNecessaryFiles()) { 
         fprintf(stdout, ">> Necessary files loaded successfully!\n");
         fflush(stdout);
+    } else {
+        fprintf(stderr, ">> Failed to load all necessary files!\n"); 
+        return false;
     }
 
     fprintf(stdout, ">> Generating provinces...!\n");

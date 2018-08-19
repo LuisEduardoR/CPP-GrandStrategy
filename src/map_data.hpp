@@ -43,6 +43,13 @@ class Province {
 
         }
 
+        void generateCenter(unsigned x, unsigned y) {
+
+            center.x = x;
+            center.y = y;
+
+        }
+
 };
 
 // Contain all the map data that will be used for the game. EMPTY FOR NOW.
@@ -50,11 +57,15 @@ class MapData {
 
     public:
 
+        std::map <unsigned, Province> provinces;
+        std::set <std::pair<unsigned, unsigned>> adjacencies;
+
         MapData(void);
         bool isAvaliable() { return mDataAvaliable; }
    
     private:
 
+        bool loadMapData();
         bool mDataAvaliable;
 
 
